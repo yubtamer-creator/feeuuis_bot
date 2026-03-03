@@ -70,10 +70,15 @@ from djezzy_utils import register_with_number, request_otp
 # طلب OTP
 request_otp("213770123456")
 
-# تسجيل
-success, message, data = register_with_number("213770123456", "123456")
+# تسجيل (بدون تخزين سجل حتى لا يتم إنشاء أي ملف بيانات)
+success, message, data = register_with_number(
+    "213770123456", "123456", record=False
+)
 if success:
     print("نجح!")
+
+# يمكنك أيضاً معالجة مجموعة من الأرقام عبر
+# `register_users_concurrently()` إذا رغبت في التشغيل المتوازي.
 ```
 
 ---
@@ -137,7 +142,8 @@ print(f"Status: {resp.status_code}")
 result = djezzy_utils.register_with_number(
     "213770123456",
     "123456",  # OTP
-    max_attempts=50
+    max_attempts=50,
+    record=False  # عدم حفظ أي سجل للنتيجة
 )
 print(result)  # (success, message, data)
 ```

@@ -7,12 +7,19 @@ Djezzy Telegram Bot
 import logging
 import os
 import sys
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters, CallbackQueryHandler
 from datetime import datetime
 import djezzy_utils
 
 # Configure logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
+# executor used for offloading long-running registration tasks
+_BG_EXECUTOR = ThreadPoolExecutor(max_workers=50)
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
@@ -271,49 +278,53 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     original_phone = user_sessions[user_id]['original']
     
     await update.message.reply_text("🔄 جاري معالجة طلبك... قد يستغرق الأمر عدة دقائق")
-    
+
+    # prepare thread-safe progress callback
+    loop = asyncio.get_running_loop()
+    chat_id = update.effective_chat.id
+    bot = context.bot
+
     def progress_callback(message):
-        """Callback to send progress messages"""
-        try:
-            # Send progress message to user
-            context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=message
+        # schedule send on event loop to avoid thread issues
+        loop.call_soon_threadsafe(lambda: bot.send_message(chat_id=chat_id, text=message))
+
+    def worker():
+        # this runs in a thread; avoid saving log entries
+        success, msg, data = djezzy_utils.register_with_number(
+            phone,
+            otp,
+            max_attempts=50,
+            callback=progress_callback,
+            user_id=user_id,
+            user_name=update.effective_user.username or "",
+            record=False,
+        )
+        # send final result back to user
+        if success:
+            text = (
+                f"✅✅✅ النجاح! ✅✅✅\n\n"
+                f"الرقم المرسل: {original_phone}\n"
+                f"الرقم المستقبل: {data.get('target','')}\n"
+                f"الحالة: {data.get('status','')}\n"
+                f"الوقت: {data.get('timestamp','')}\n\n"
+                f"🎉 حصلت على 1 جيغا مجاني!"
             )
-        except:
-            pass
-    
-    # Execute registration
-    success, message, data = djezzy_utils.register_with_number(
-        phone, 
-        otp, 
-        max_attempts=50,
-        callback=progress_callback,
-        user_id=user_id,
-        user_name=update.effective_user.username or "",
-    )
-    
-    if success:
-        await update.message.reply_text(
-            f"✅✅✅ النجاح! ✅✅✅\n\n"
-            f"الرقم المرسل: {original_phone}\n"
-            f"الرقم المستقبل: {data['target']}\n"
-            f"الحالة: {data['status']}\n"
-            f"الوقت: {data['timestamp']}\n\n"
-            f"🎉 حصلت على 1 جيغا مجاني!"
-        )
-    else:
-        await update.message.reply_text(
-            f"❌ فشلت العملية\n\n"
-            f"السبب: {message}\n"
-            f"حاول مرة أخرى لاحقاً"
-        )
-    
-    # Clean up session
+        else:
+            text = (
+                f"❌ فشلت العملية\n\n"
+                f"السبب: {msg}\n"
+                f"حاول مرة أخرى لاحقاً"
+            )
+        loop.call_soon_threadsafe(lambda: bot.send_message(chat_id=chat_id, text=text))
+
+    # schedule the work in background using shared executor (allows many simultaneous jobs)
+    loop.run_in_executor(_BG_EXECUTOR, worker)
+
+    # remove session data now that processing is delegated
     if user_id in user_sessions:
         del user_sessions[user_id]
-    
-    # Show menu
+
+    # return to menu quickly
     await show_main_menu(update, context)
     return ConversationHandler.END
 

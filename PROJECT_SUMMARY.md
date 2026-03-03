@@ -25,7 +25,7 @@ request_otp(msisdn)                    # طلب كود التحقق
 login_with_otp(mobile_number, otp)    # تسجيل الدخول
 send_invitation(token, sender, receiver)  # إرسال دعوة
 activate_reward(token, sender)         # تفعيل المكافأة
-register_with_number(sender, otp)      # التسجيل الكامل
+register_with_number(sender, otp, record=False)      # التسجيل الكامل (يمكن تعطيل حفظ النتائج إذا لم تكن ضرورية)
 get_registered_count()                 # عدد الأرقام
 get_recent_registrations()             # آخر التسجيلات
 ```
@@ -119,7 +119,9 @@ python djezzy_bot.py
 
 ```python
 from djezzy_utils import register_with_number
-result = register_with_number("213770123456", "123456")
+# إرسال المهام في الخلفية أو دفعة واحدة باستخدام
+# `register_users_concurrently()` عند الحاجة
+result = register_with_number("213770123456", "123456", record=False)
 ```
 
 ✅ مرن وقوي للمطورين
@@ -203,7 +205,8 @@ from djezzy_utils import register_with_number
 
 class MyApp:
     def register_user(self, phone, otp):
-        success, message, data = register_with_number(phone, otp)
+        # run without recording if you don't need to keep logs
+        success, message, data = register_with_number(phone, otp, record=False)
         return success
 ```
 

@@ -9,6 +9,7 @@ Standalone CLI Runner - استخدام الأداة بدون البوت
 
 import sys
 import os
+import argparse
 from datetime import datetime
 
 try:
@@ -38,6 +39,9 @@ def print_menu():
     print("5. خروج")
     print("-" * 50)
 
+
+# will be set from CLI options
+_RECORD_RESULTS = True
 
 def register_new_number():
     """Register a new number"""
@@ -80,7 +84,8 @@ def register_new_number():
             sender_f,
             otp,
             max_attempts=50,
-            callback=progress
+            callback=progress,
+            record=_RECORD_RESULTS
         )
         
         if success:
@@ -145,11 +150,23 @@ def clean_project():
 
 def main():
     """Main function"""
+    global _RECORD_RESULTS
+
+    # parse command line args
+    parser = argparse.ArgumentParser(description="Djezzy CLI runner")
+    parser.add_argument('--no-record', action='store_true', help='Do not save registration results to disk')
+    args = parser.parse_args()
+    if args.no_record:
+        _RECORD_RESULTS = False
+
     print_banner()
     
-    registered = djezzy_utils.load_registered_numbers()
-    if registered:
-        print(f"📊 الأرقام المسجلة سابقاً: {len(registered)}\n")
+    if _RECORD_RESULTS:
+        registered = djezzy_utils.load_registered_numbers()
+        if registered:
+            print(f"📊 الأرقام المسجلة سابقاً: {len(registered)}\n")
+    else:
+        print("📁 تسجيل النتائج معطل؛ لن يتم حفظ أي بيانات\n")
     
     while True:
         print_menu()

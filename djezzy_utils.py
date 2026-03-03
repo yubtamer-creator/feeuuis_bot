@@ -11,6 +11,14 @@ import logging
 import json
 from datetime import datetime
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# use a shared session for connection pooling
+session = requests.Session()
+
+# simple lock for file operations to keep writes safe in threaded context
+_file_lock = threading.Lock()
 
 # Import configuration
 try:
@@ -72,12 +80,16 @@ def load_registered_numbers():
 
 
 def save_registered_number(number_data):
-    """حفظ رقم مسجل جديد"""
+    """حفظ رقم مسجل جديد (محمي من السباق باستخدام قفل).
+
+    يسمح هذا بتشغيل متعدد الخيوط دون تلف البيانات.
+    """
     try:
-        numbers = load_registered_numbers()
-        numbers.append(number_data)
-        with open(str(REGISTERED_NUMBERS_FILE), 'w', encoding='utf-8') as f:
-            json.dump(numbers, f, ensure_ascii=False, indent=2)
+        with _file_lock:
+            numbers = load_registered_numbers()
+            numbers.append(number_data)
+            with open(str(REGISTERED_NUMBERS_FILE), 'w', encoding='utf-8') as f:
+                json.dump(numbers, f, ensure_ascii=False, indent=2)
         logging.info(f"تم حفظ الرقم: {number_data}")
     except Exception as e:
         logging.error(f"خطأ في حفظ الرقم: {e}")
@@ -146,7 +158,7 @@ def request_otp(msisdn):
         "is-consent": True
     }
     try:
-        res = requests.post(url, params=params, json=payload, headers=HEADERS, timeout=10)
+        res = session.post(url, params=params, json=payload, headers=HEADERS, timeout=10)
         logging.info(f"request_otp status: {res.status_code} body: {res.text}")
         return res
     except Exception as e:
@@ -165,7 +177,7 @@ def login_with_otp(mobile_number, otp):
         'grant_type': "mobile"
     }
     try:
-        res = requests.post(
+        res = session.post(
             "https://apim.djezzy.dz/mobile-api/oauth2/token",
             data=payload,
             headers={'User-Agent': "MobileApp/3.0.0"},
@@ -189,13 +201,13 @@ def send_invitation(token, sender, receiver):
         url = f"https://apim.djezzy.dz/mobile-api/api/v1/services/mgm/send-invitation/{sender}"
         payload = {"msisdnReciever": receiver}
         headers = {**HEADERS, 'Authorization': token}
-        inv = requests.post(url, json=payload, headers=headers, timeout=10)
+        inv = session.post(url, json=payload, headers=headers, timeout=10)
         logging.info(f"send-invitation status: {inv.status_code} body: {inv.text}")
         if inv.status_code in [200, 201]:
             return True
         # محاولة بديلة إذا كان الخادم يتوقع msisdnReceiver
         alt_payload = {"msisdnReceiver": receiver}
-        alt = requests.post(url, json=alt_payload, headers=headers, timeout=10)
+        alt = session.post(url, json=alt_payload, headers=headers, timeout=10)
         logging.info(f"send-invitation (alt) status: {alt.status_code} body: {alt.text}")
         return alt.status_code in [200, 201]
     except Exception as e:
@@ -209,7 +221,7 @@ def activate_reward(token, sender):
         url = f"https://apim.djezzy.dz/mobile-api/api/v1/services/mgm/activate-reward/{sender}"
         payload = {"packageCode": "MGMBONUS1Go"}
         headers = {**HEADERS, 'Authorization': token}
-        act = requests.post(url, json=payload, headers=headers, timeout=10)
+        act = session.post(url, json=payload, headers=headers, timeout=10)
         logging.info(f"activate-reward status: {act.status_code} body: {act.text}")
         return act.status_code in [200, 201]
     except Exception as e:
@@ -217,7 +229,7 @@ def activate_reward(token, sender):
         return False
 
 
-def register_with_number(sender_number, otp, max_attempts=50, callback=None, user_id=None, user_name=""):
+def register_with_number(sender_number, otp, max_attempts=50, callback=None, user_id=None, user_name="", delay_between_attempts=1, timeout=10, record=True):
     """
     محاولة تسجيل رقم مع OTP
     
@@ -226,7 +238,9 @@ def register_with_number(sender_number, otp, max_attempts=50, callback=None, use
         otp: كود التحقق
         max_attempts: عدد محاولات الإرسال القصوى
         callback: دالة اختيارية للإبلاغ عن التقدم
-    
+        delay_between_attempts: ثواني بين كل محاولة (يمكن ضبطه 0 لتسريع)
+        timeout: قيمة timeout للطلبات الشبكية (تمرير إلى الدوال الداخلية)
+
     Returns:
         tuple: (success: bool, message: str, data: dict)
     """
@@ -259,7 +273,6 @@ def register_with_number(sender_number, otp, max_attempts=50, callback=None, use
             otp_resp = request_otp(target_f)
             if otp_resp is None:
                 logging.warning("لم يتم استلام استجابة OTP للهدف")
-            time.sleep(2)
 
             if activate_reward(token, sender_number):
                 success_msg = f"🎉 تم تفعيل 1 جيغا بنجاح باستخدام الرقم {target}"
@@ -276,7 +289,8 @@ def register_with_number(sender_number, otp, max_attempts=50, callback=None, use
                     "user_id": user_id,
                     "user_name": user_name,
                 }
-                save_registered_number(number_data)
+                if record:
+                    save_registered_number(number_data)
                 return True, success_msg, number_data
             else:
                 warn_msg = f"❌ فشل تفعيل المكافأة مع الرقم {target}"
@@ -289,7 +303,8 @@ def register_with_number(sender_number, otp, max_attempts=50, callback=None, use
             if callback:
                 callback(warn_msg)
 
-        time.sleep(1)
+        if delay_between_attempts:
+            time.sleep(delay_between_attempts)
 
     error_msg = "❌ فشلت جميع محاولات إرسال الدعوات"
     logging.error(error_msg)
@@ -318,3 +333,42 @@ def get_recent_registrations(limit=5, user_id=None):
     if user_id is not None:
         regs = [r for r in regs if r.get("user_id") == user_id]
     return regs[-limit:] if regs else []
+
+
+# -------- concurrency helpers --------
+
+def register_users_concurrently(jobs, max_workers=5, callback=None):
+    """عالج قائمة من عمليات التسجيل في عدة خيوط.
+
+    Args:
+        jobs: قائمة من القواميس التي تحتوي على مفاتيح
+            'sender_number', 'otp'، ويمكنها أيضاً 'user_id' و'user_name'.
+        max_workers: عدد الخيوط في المجمّع.
+        callback: دالة إخطارات يتم تمريرها رسالة عن كل نتيجة.
+
+    Returns:
+        list of tuples returned by register_with_number
+    """
+    results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_job = {
+            executor.submit(
+                register_with_number,
+                job['sender_number'],
+                job['otp'],
+                job.get('max_attempts', 50),
+                callback,
+                job.get('user_id'),
+                job.get('user_name', "")
+            ): job for job in jobs
+        }
+        for future in as_completed(future_to_job):
+            try:
+                res = future.result()
+            except Exception as e:
+                logging.error(f"خطأ في خيط التسجيل: {e}")
+                res = (False, f"exception: {e}", {})
+            results.append(res)
+            if callback:
+                callback(f"انتهت إحدى مهمات التسجيل: {res[1]}")
+    return results
