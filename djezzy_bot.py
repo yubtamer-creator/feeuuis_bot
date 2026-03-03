@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Conversation states
-PHONE_NUMBER, OTP_CODE = range(2)
+PHONE_NUMBER, OTP_CODE, ADMIN_MENU, ADMIN_BROADCAST, ADMIN_BAN, ADMIN_UNBAN = range(6)
 
 # Store user data temporarily
 user_sessions = {}
@@ -56,18 +56,33 @@ def is_admin(user_id: int) -> bool:
     """Return True when the given user id is configured as an administrator."""
     return user_id in ADMIN_IDS
 
+
+def is_banned(user_id: int) -> bool:
+    """Check if a user is banned from using the bot."""
+    try:
+        banned = djezzy_utils.load_banned_users()
+    except Exception:
+        banned = []
+    return user_id in banned
+
 # -------------------------------------------------------------------------
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Start command - show main menu"""
     user_id = update.effective_user.id
-    # build keyboard depending on whether the user is an admin or not
-    keyboard = [[InlineKeyboardButton("📱 تسجيل رقم جديد", callback_data='register')]]
+    if is_banned(user_id) and not is_admin(user_id):
+        await update.message.reply_text("❌ تم حظرك من استخدام هذا البوت.")
+        return
+    # always show same base buttons for everyone; admins get extra management option
+    keyboard = [
+        [InlineKeyboardButton("📱 تسجيل رقم جديد", callback_data='register')],
+        [InlineKeyboardButton("📊 إحصائيات", callback_data='stats')],
+        [InlineKeyboardButton("📋 آخر التسجيلات", callback_data='recent')],
+        [InlineKeyboardButton("ℹ️ معلومات", callback_data='info')],
+    ]
     if is_admin(user_id):
-        keyboard.append([InlineKeyboardButton("📊 إحصائيات", callback_data='stats')])
-        keyboard.append([InlineKeyboardButton("📋 آخر التسجيلات", callback_data='recent')])
-        keyboard.append([InlineKeyboardButton("ℹ️ معلومات", callback_data='info')])
+        keyboard.append([InlineKeyboardButton("⚙️ إدارة", callback_data='admin')])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
@@ -82,6 +97,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id if query.from_user else None
+    # block banned users immediately
+    if user_id and is_banned(user_id) and not is_admin(user_id):
+        await query.edit_message_text("❌ لقد تم حظرك من الاستمرار.")
+        return ConversationHandler.END
 
     if query.data == 'register':
         await query.edit_message_text(
@@ -96,29 +115,48 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return ConversationHandler.END
 
     # only admin may access the following commands
-    if query.data in ('stats', 'recent', 'info') and not is_admin(user_id):
-        await query.edit_message_text("❌ هذه الميزة متاحة للمشرف فقط.")
-        # after denying show restricted main menu
-        await show_main_menu(update, context)
-        return ConversationHandler.END
     
+    if query.data == 'admin' and is_admin(user_id):
+        # show administration submenu
+        keyboard = [
+            [InlineKeyboardButton("📣 بث رسالة", callback_data='broadcast')],
+            [InlineKeyboardButton("⛔ حظر مستخدم", callback_data='ban')],
+            [InlineKeyboardButton("✅ رفع الحظر", callback_data='unban')],
+            [InlineKeyboardButton("📋 عرض المستخدمين", callback_data='list_users')],
+            [InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data='menu')],
+        ]
+        await query.edit_message_text("🔧 لوحة إدارة المشرف:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return ADMIN_MENU
+
     if query.data == 'stats':
-        count = djezzy_utils.get_registered_count()
+        # admin sees global count, others see their own
+        if is_admin(user_id):
+            count = djezzy_utils.get_registered_count()
+            text = f"📊 إحصائيات عامة:\n\n✅ عدد الأرقام المسجلة: {count}\n"
+        else:
+            count = djezzy_utils.get_registered_count(user_id=user_id)
+            text = f"📊 إحصائياتك:\n\n✅ عدد التسجيلات الخاصة بك: {count}\n"
+            # show last registration if any
+            recent = djezzy_utils.get_recent_registrations(limit=1, user_id=user_id)
+            if recent:
+                r = recent[-1]
+                text += f"\nآخر تسجيل:\n{r['sender']} ➜ {r['target']} ({r['timestamp']})\n"
+        text += f"\nالتاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         keyboard = [[InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data='menu')]]
-        await query.edit_message_text(
-            f"📊 الإحصائيات:\n\n"
-            f"✅ عدد الأرقام المسجلة: {count}\n\n"
-            f"التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         return ConversationHandler.END
     
     elif query.data == 'recent':
-        recent = djezzy_utils.get_recent_registrations(limit=10)
+        if is_admin(user_id):
+            recent = djezzy_utils.get_recent_registrations(limit=10)
+            title = "📋 آخر التسجيلات العامة:"
+        else:
+            recent = djezzy_utils.get_recent_registrations(limit=10, user_id=user_id)
+            title = "📋 تسجيلاتك الأخيرة:"
         if not recent:
             text = "📋 لا توجد تسجيلات حتى الآن"
         else:
-            text = "📋 آخر التسجيلات:\n\n"
+            text = title + "\n\n"
             for i, reg in enumerate(recent, 1):
                 text += f"{i}. {reg['sender']} ➜ {reg['target']}\n   {reg['timestamp']}\n\n"
         keyboard = [[InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data='menu')]]
@@ -141,17 +179,40 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ConversationHandler.END
 
+    # admin submenu choices
+    if query.data == 'broadcast' and is_admin(user_id):
+        await query.edit_message_text("📣 أدخل الرسالة التي تريد بثها:")
+        return ADMIN_BROADCAST
+    if query.data == 'ban' and is_admin(user_id):
+        await query.edit_message_text("⛔ أدخل معرف المستخدم الذي تريد حظره:")
+        return ADMIN_BAN
+    if query.data == 'unban' and is_admin(user_id):
+        await query.edit_message_text("✅ أدخل معرف المستخدم الذي تريد رفع الحظر عنه:")
+        return ADMIN_UNBAN
+    if query.data == 'list_users' and is_admin(user_id):
+        users = djezzy_utils.get_unique_users()
+        if not users:
+            text = "📋 لا يوجد مستخدمون مسجلون بعد."
+        else:
+            text = "📋 المستخدمون المسجلون:\n\n"
+            for u in users:
+                text += f"{u['user_id']} ({u['user_name']})\n"
+        keyboard = [[InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data='menu')]]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return ConversationHandler.END
+
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show main menu again"""
-    user_id = None
-    if update.effective_user:
-        user_id = update.effective_user.id
-    keyboard = [[InlineKeyboardButton("📱 تسجيل رقم جديد", callback_data='register')]]
-    if is_admin(user_id):
-        keyboard.append([InlineKeyboardButton("📊 إحصائيات", callback_data='stats')])
-        keyboard.append([InlineKeyboardButton("📋 آخر التسجيلات", callback_data='recent')])
-        keyboard.append([InlineKeyboardButton("ℹ️ معلومات", callback_data='info')])
+    # same base keyboard for everyone; admins get admin button
+    keyboard = [
+        [InlineKeyboardButton("📱 تسجيل رقم جديد", callback_data='register')],
+        [InlineKeyboardButton("📊 إحصائيات", callback_data='stats')],
+        [InlineKeyboardButton("📋 آخر التسجيلات", callback_data='recent')],
+        [InlineKeyboardButton("ℹ️ معلومات", callback_data='info')],
+    ]
+    if is_admin(update.effective_user.id if update.effective_user else None):
+        keyboard.append([InlineKeyboardButton("⚙️ إدارة", callback_data='admin')])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     if update.callback_query:
@@ -227,7 +288,9 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         phone, 
         otp, 
         max_attempts=50,
-        callback=progress_callback
+        callback=progress_callback,
+        user_id=user_id,
+        user_name=update.effective_user.username or "",
     )
     
     if success:
@@ -251,6 +314,56 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         del user_sessions[user_id]
     
     # Show menu
+    await show_main_menu(update, context)
+    return ConversationHandler.END
+
+
+async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Receive broadcast text from admin and send to all users"""
+    msg = update.message.text.strip()
+    users = djezzy_utils.get_unique_users()
+    for u in users:
+        try:
+            await context.bot.send_message(chat_id=u['user_id'], text=msg)
+        except Exception:
+            pass
+    await update.message.reply_text("✅ تم إرسال الرسالة إلى جميع المستخدمين.")
+    await show_main_menu(update, context)
+    return ConversationHandler.END
+
+
+async def handle_ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    try:
+        uid = int(text)
+    except ValueError:
+        await update.message.reply_text("❌ المعرف غير صالح. أدخل رقماً فقط.")
+        return ADMIN_BAN
+    banned = djezzy_utils.load_banned_users()
+    if uid in banned:
+        await update.message.reply_text("⚠️ المستخدم محظور بالفعل.")
+    else:
+        banned.append(uid)
+        djezzy_utils.save_banned_users(banned)
+        await update.message.reply_text(f"✅ تم حظر المستخدم {uid}.")
+    await show_main_menu(update, context)
+    return ConversationHandler.END
+
+
+async def handle_unban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    try:
+        uid = int(text)
+    except ValueError:
+        await update.message.reply_text("❌ المعرف غير صالح. أدخل رقماً فقط.")
+        return ADMIN_UNBAN
+    banned = djezzy_utils.load_banned_users()
+    if uid not in banned:
+        await update.message.reply_text("⚠️ هذا المستخدم ليس محظوراً.")
+    else:
+        banned = [x for x in banned if x != uid]
+        djezzy_utils.save_banned_users(banned)
+        await update.message.reply_text(f"✅ تم رفع الحظر عن المستخدم {uid}.")
     await show_main_menu(update, context)
     return ConversationHandler.END
 
@@ -279,6 +392,67 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "(يتم تحديده عبر ADMIN_ID أو CHAT_ID)."
     )
     await update.message.reply_text(help_text)
+
+
+async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Broadcast text to all registered users (admin only)"""
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ لست مشرفًا")
+        return
+    text = " ".join(context.args)
+    if not text:
+        await update.message.reply_text("📣 الاستخدام: /broadcast رسالة")
+        return
+    users = djezzy_utils.get_unique_users()
+    for u in users:
+        try:
+            await context.bot.send_message(chat_id=u['user_id'], text=text)
+        except Exception:
+            pass
+    await update.message.reply_text("✅ تم إرسال البث إلى جميع المستخدمين.")
+
+async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ لست مشرفًا")
+        return
+    if not context.args:
+        await update.message.reply_text("⛔ الاستخدام: /ban <user_id>")
+        return
+    try:
+        uid = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ معرف غير صالح")
+        return
+    banned = djezzy_utils.load_banned_users()
+    if uid in banned:
+        await update.message.reply_text("⚠️ المستخدم محظور بالفعل.")
+    else:
+        banned.append(uid)
+        djezzy_utils.save_banned_users(banned)
+        await update.message.reply_text(f"✅ تم حظر المستخدم {uid}.")
+
+async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ لست مشرفًا")
+        return
+    if not context.args:
+        await update.message.reply_text("✅ الاستخدام: /unban <user_id>")
+        return
+    try:
+        uid = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ معرف غير صالح")
+        return
+    banned = djezzy_utils.load_banned_users()
+    if uid not in banned:
+        await update.message.reply_text("⚠️ هذا المستخدم ليس محظورًا.")
+    else:
+        banned = [x for x in banned if x != uid]
+        djezzy_utils.save_banned_users(banned)
+        await update.message.reply_text(f"✅ تم رفع الحظر عن المستخدم {uid}.")
 
 
 def main() -> None:
@@ -318,6 +492,22 @@ def main() -> None:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_otp),
                 CommandHandler("cancel", cancel),
             ],
+            ADMIN_MENU: [
+                CallbackQueryHandler(button_callback),
+                CommandHandler("cancel", cancel),
+            ],
+            ADMIN_BROADCAST: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast),
+                CommandHandler("cancel", cancel),
+            ],
+            ADMIN_BAN: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ban),
+                CommandHandler("cancel", cancel),
+            ],
+            ADMIN_UNBAN: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unban),
+                CommandHandler("cancel", cancel),
+            ],
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
@@ -329,6 +519,9 @@ def main() -> None:
     # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("broadcast", broadcast_command))
+    application.add_handler(CommandHandler("ban", ban_command))
+    application.add_handler(CommandHandler("unban", unban_command))
     application.add_handler(conv_handler)
 
     # Start the bot

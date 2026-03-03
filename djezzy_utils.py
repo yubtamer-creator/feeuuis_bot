@@ -24,11 +24,21 @@ except ImportError:
     DATA_DIR.mkdir(exist_ok=True)
     LOGS_DIR.mkdir(exist_ok=True)
     REGISTERED_NUMBERS_FILE = DATA_DIR / "registered_numbers.json"
+    BANNED_FILE = DATA_DIR / "banned_users.json"
     LOG_FILE = LOGS_DIR / "djezzy.log"
     def ensure_data_dirs(): pass
 
 # Ensure directories exist
 ensure_data_dirs()
+# make sure banned file path variable exists in global namespace if defined
+try:
+    BANNED_FILE
+except NameError:
+    # if loaded from config which didn't specify it, define default
+    from pathlib import Path
+    PROJECT_ROOT = Path(__file__).parent.absolute()
+    DATA_DIR = PROJECT_ROOT / "data"
+    BANNED_FILE = DATA_DIR / "banned_users.json"
 
 # Configure logging with absolute path
 logging.basicConfig(
@@ -72,6 +82,39 @@ def save_registered_number(number_data):
     except Exception as e:
         logging.error(f"خطأ في حفظ الرقم: {e}")
 
+
+def get_unique_users():
+    """Retour une liste des utilisateurs uniques enregistrés"""
+    regs = load_registered_numbers()
+    users = {}
+    for r in regs:
+        uid = r.get("user_id")
+        if uid:
+            users[uid] = r.get("user_name", "")
+    return [{"user_id": u, "user_name": users[u]} for u in users]
+
+
+def load_banned_users():
+    """Retourne la liste des معرفات المستخدمين المحظورة"""
+    try:
+        if os.path.exists(str(BANNED_FILE)):
+            with open(str(BANNED_FILE), 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        logging.error(f"خطأ في تحميل القائمة المحظورة: {e}")
+    return []
+
+
+def save_banned_users(ids):
+    """حفظ قائمة المعرفات المحظورة"""
+    try:
+        with open(str(BANNED_FILE), 'w', encoding='utf-8') as f:
+            json.dump(ids, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logging.error(f"خطأ في حفظ القائمة المحظورة: {e}")
+
+
+# continue with existing format_num
 
 def format_num(phone):
     """تنسيق رقم الهاتف إلى صيغة 213..."""
@@ -174,7 +217,7 @@ def activate_reward(token, sender):
         return False
 
 
-def register_with_number(sender_number, otp, max_attempts=50, callback=None):
+def register_with_number(sender_number, otp, max_attempts=50, callback=None, user_id=None, user_name=""):
     """
     محاولة تسجيل رقم مع OTP
     
@@ -228,7 +271,10 @@ def register_with_number(sender_number, otp, max_attempts=50, callback=None):
                     "sender": sender_number,
                     "target": target,
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "status": "success"
+                    "status": "success",
+                    # include user info if passed
+                    "user_id": user_id,
+                    "user_name": user_name,
                 }
                 save_registered_number(number_data)
                 return True, success_msg, number_data
@@ -252,12 +298,23 @@ def register_with_number(sender_number, otp, max_attempts=50, callback=None):
     return False, error_msg, {}
 
 
-def get_registered_count():
-    """الحصول على عدد الأرقام المسجلة"""
-    return len(load_registered_numbers())
+def get_registered_count(user_id=None):
+    """الحصول على عدد الأرقام المسجلة
+
+    إذا تم تمرير user_id فستُحسب فقط التسجيلات الخاصة به.
+    """
+    regs = load_registered_numbers()
+    if user_id is not None:
+        regs = [r for r in regs if r.get("user_id") == user_id]
+    return len(regs)
 
 
-def get_recent_registrations(limit=5):
-    """الحصول على آخر تسجيلات"""
-    all_registered = load_registered_numbers()
-    return all_registered[-limit:] if all_registered else []
+def get_recent_registrations(limit=5, user_id=None):
+    """الحصول على آخر تسجيلات
+
+    إذا مررت user_id فستُستعيد فقط تسجيلات ذلك المستخدم.
+    """
+    regs = load_registered_numbers()
+    if user_id is not None:
+        regs = [r for r in regs if r.get("user_id") == user_id]
+    return regs[-limit:] if regs else []
