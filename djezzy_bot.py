@@ -78,6 +78,12 @@ def is_banned(user_id: int) -> bool:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Start command - show main menu"""
     user_id = update.effective_user.id
+    # record this user as having started (for broadcast purposes)
+    try:
+        djezzy_utils.save_seen_user(user_id, update.effective_user.username or "")
+    except Exception:
+        pass
+
     if is_banned(user_id) and not is_admin(user_id):
         await update.message.reply_text("❌ تم حظرك من استخدام هذا البوت.")
         return
@@ -197,13 +203,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.edit_message_text("✅ أدخل معرف المستخدم الذي تريد رفع الحظر عنه:")
         return ADMIN_UNBAN
     if query.data == 'list_users' and is_admin(user_id):
-        users = djezzy_utils.get_unique_users()
+        users = djezzy_utils.load_seen_users()
         if not users:
-            text = "📋 لا يوجد مستخدمون مسجلون بعد."
+            text = "📋 لا يوجد مستخدمون بعد."
         else:
-            text = "📋 المستخدمون المسجلون:\n\n"
+            text = "📋 المستخدمون الذين بدأوا المحادثة:\n\n"
             for u in users:
-                text += f"{u['user_id']} ({u['user_name']})\n"
+                text += f"{u['user_id']} ({u.get('user_name','')})\n"
         keyboard = [[InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data='menu')]]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         return ConversationHandler.END
@@ -332,7 +338,7 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Receive broadcast text from admin and send to all users"""
     msg = update.message.text.strip()
-    users = djezzy_utils.get_unique_users()
+    users = djezzy_utils.load_seen_users()
     for u in users:
         try:
             await context.bot.send_message(chat_id=u['user_id'], text=msg)
@@ -406,7 +412,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Broadcast text to all registered users (admin only)"""
+    """Broadcast text to all users who have started the bot (admin only)"""
     user_id = update.effective_user.id
     if not is_admin(user_id):
         await update.message.reply_text("❌ لست مشرفًا")
@@ -415,7 +421,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if not text:
         await update.message.reply_text("📣 الاستخدام: /broadcast رسالة")
         return
-    users = djezzy_utils.get_unique_users()
+    users = djezzy_utils.load_seen_users()
     for u in users:
         try:
             await context.bot.send_message(chat_id=u['user_id'], text=text)

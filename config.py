@@ -18,6 +18,7 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 
 # Data files
 REGISTERED_NUMBERS_FILE = DATA_DIR / "registered_numbers.json"
+SEEN_USERS_FILE = DATA_DIR / "seen_users.json"  # IDs of anyone who pressed /start
 LOG_FILE = LOGS_DIR / "djezzy.log"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 ENV_FILE = PROJECT_ROOT / ".env"

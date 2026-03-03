@@ -32,21 +32,23 @@ except ImportError:
     DATA_DIR.mkdir(exist_ok=True)
     LOGS_DIR.mkdir(exist_ok=True)
     REGISTERED_NUMBERS_FILE = DATA_DIR / "registered_numbers.json"
+    SEEN_USERS_FILE = DATA_DIR / "seen_users.json"
     BANNED_FILE = DATA_DIR / "banned_users.json"
     LOG_FILE = LOGS_DIR / "djezzy.log"
     def ensure_data_dirs(): pass
 
 # Ensure directories exist
 ensure_data_dirs()
-# make sure banned file path variable exists in global namespace if defined
-try:
-    BANNED_FILE
-except NameError:
-    # if loaded from config which didn't specify it, define default
-    from pathlib import Path
-    PROJECT_ROOT = Path(__file__).parent.absolute()
-    DATA_DIR = PROJECT_ROOT / "data"
-    BANNED_FILE = DATA_DIR / "banned_users.json"
+# make sure banned/seen file path variables exist in global namespace if defined
+from pathlib import Path
+PROJECT_ROOT = Path(__file__).parent.absolute()
+DATA_DIR = PROJECT_ROOT / "data"
+for fname in ("BANNED_FILE", "SEEN_USERS_FILE"):
+    if fname not in globals():
+        if fname == "BANNED_FILE":
+            globals()[fname] = DATA_DIR / "banned_users.json"
+        else:
+            globals()[fname] = DATA_DIR / "seen_users.json"
 
 # Configure logging with absolute path
 logging.basicConfig(
@@ -117,13 +119,39 @@ def load_banned_users():
     return []
 
 
-def save_banned_users(ids):
     """حفظ قائمة المعرفات المحظورة"""
     try:
         with open(str(BANNED_FILE), 'w', encoding='utf-8') as f:
             json.dump(ids, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logging.error(f"خطأ في حفظ القائمة المحظورة: {e}")
+
+
+def load_seen_users():
+    """Return list of recorded users who pressed /start"""
+    try:
+        if os.path.exists(str(SEEN_USERS_FILE)):
+            with open(str(SEEN_USERS_FILE), 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        logging.error(f"خطأ في تحميل قائمة المستخدمين المرئيين: {e}")
+    return []
+
+
+def save_seen_user(user_id, user_name=""):
+    """Register a user id as having started the bot"""
+    try:
+        users = load_seen_users()
+        # users stored as list of dicts {user_id, user_name}
+        if any(u.get("user_id") == user_id for u in users):
+            return False
+        users.append({"user_id": user_id, "user_name": user_name})
+        with open(str(SEEN_USERS_FILE), 'w', encoding='utf-8') as f:
+            json.dump(users, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        logging.error(f"خطأ في حفظ مستخدم مرئي: {e}")
+        return False
 
 
 # continue with existing format_num
