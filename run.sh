@@ -98,7 +98,8 @@ echo "1️⃣  🤖 بوت Telegram"
 echo "2️⃣  💻 واجهة سطر الأوامر (CLI)"
 echo "3️⃣  🔧 برنامج الإعداد"
 echo "4️⃣  📖 عرض الفهرس"
-echo "5️⃣  ❌ خروج"
+echo "5️⃣  🔄 تنظيف المشروع"
+echo "6️⃣  ❌ خروج"
 echo ""
 
 read -p "اختر (1-5): " choice
@@ -125,6 +126,11 @@ case $choice in
         python3 INDEX.py
         ;;
     5)
+        echo -e "${YELLOW}🔄 تنظيف المشروع...${NC}"
+        echo ""
+        ./clean.sh
+        ;;
+    6)
         echo -e "${GREEN}👋 شكراً لاستخدامك الأداة!${NC}"
         exit 0
         ;;

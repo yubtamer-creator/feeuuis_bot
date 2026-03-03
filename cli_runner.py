@@ -34,7 +34,8 @@ def print_menu():
     print("1. تسجيل رقم جديد")
     print("2. عرض الإحصائيات")
     print("3. عرض آخر التسجيلات")
-    print("4. خروج")
+    print("4. تنظيف المشروع")
+    print("5. خروج")
     print("-" * 50)
 
 
@@ -132,6 +133,16 @@ def show_recent():
     print()
 
 
+def clean_project():
+    """Run the cleanup script from the CLI"""
+    print("\n🔄 جاري تنظيف المشروع...")
+    try:
+        import subprocess
+        subprocess.run(["bash", "clean.sh"], check=True)
+    except Exception as e:
+        print(f"❌ فشل تشغيل clean.sh: {e}")
+
+
 def main():
     """Main function"""
     print_banner()
@@ -142,7 +153,7 @@ def main():
     
     while True:
         print_menu()
-        choice = input("\n👉 اختر رقم العملية (1-4): ").strip()
+        choice = input("\n👉 اختر رقم العملية (1-5): ").strip()
         
         if choice == "1":
             register_new_number()
@@ -151,6 +162,8 @@ def main():
         elif choice == "3":
             show_recent()
         elif choice == "4":
+            clean_project()
+        elif choice == "5":
             print("\n👋 شكراً لاستخدامك الأداة. مع السلامة!\n")
             break
         else:

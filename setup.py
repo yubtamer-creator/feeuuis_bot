@@ -183,6 +183,68 @@ def create_config_template():
         print(f"ℹ️  الملف {config_file} موجود بالفعل")
 
 
+def clean_project():
+    """Clean generated files and environment from Python.
+
+    This mirrors clean.sh, allowing cleanup from setup script.
+    """
+    print_header("🔄 تنظيف المشروع")
+
+    import shutil
+    removed = False
+
+    # remove venv
+    if os.path.isdir("venv"):
+        print("🗑️  حذف venv/")
+        shutil.rmtree("venv")
+        removed = True
+
+    # remove .env
+    if os.path.isfile(".env"):
+        print("🗑️  حذف .env")
+        os.remove(".env")
+        removed = True
+
+    # remove logs/data
+    for folder in ("logs", "data"):
+        if os.path.isdir(folder):
+            print(f"🗑️  حذف محتويات {folder}/")
+            for root, dirs, files in os.walk(folder):
+                for f in files:
+                    try:
+                        os.remove(os.path.join(root, f))
+                    except Exception:
+                        pass
+            removed = True
+
+    # remove pycache and .pyc
+    for root, dirs, files in os.walk("."):
+        for d in dirs:
+            if d == "__pycache__":
+                shutil.rmtree(os.path.join(root, d), ignore_errors=True)
+                removed = True
+        for f in files:
+            if f.endswith(".pyc"):
+                try:
+                    os.remove(os.path.join(root, f))
+                    removed = True
+                except Exception:
+                    pass
+
+    # termux artifacts
+    if os.path.isdir("termux"):
+        for fname in os.listdir("termux"):
+            if fname.endswith(".tar.gz"):
+                os.remove(os.path.join("termux", fname))
+                removed = True
+
+    if not removed:
+        print("✅ لم يتم العثور على أية ملفات لتنظيفها")
+    else:
+        print("✅ انتهى التنظيف")
+
+
+
 def final_checklist():
     """Show final checklist"""
     print_header("✅ قائمة التحقق النهائية")
@@ -207,6 +269,10 @@ def final_checklist():
 
 def main():
     """Main setup process"""
+    # support --clean flag for quick cleanup
+    if "--clean" in sys.argv or "-c" in sys.argv:
+        return clean_project()
+
     print("\n" + "█"*60)
     print("█" + " "*58 + "█")
     print("█" + "  دليل الإعداد - أداة اتصالات الجزائر".center(58) + "█")

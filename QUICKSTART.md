@@ -178,7 +178,7 @@ python djezzy_bot.py
 
 ⚠️ **هام جداً:**
 
-```bash
+````bash
 # ❌ لا تفعل هذا:
 python -c "TOKEN='...' python djezzy_bot.py"
 
@@ -187,7 +187,14 @@ export TELEGRAM_BOT_TOKEN="your_token"
 
 # الملاحظة: سيتم التأكد من أن هذا المتغير يحتوي على التنسيق الصحيح (أرقام متبوعة بنقطتين ثم مفتاح).
 python djezzy_bot.py
-```
+
+> 💡 لتنظيف المشروع وإعادة الحالة الافتراضية يمكنك تشغيل:
+>
+> ```bash
+> bash clean.sh           # سكربت التنظيف الأوتوماتيكي
+> python setup.py --clean # خيار داخل أداة الإعداد
+> ```
+````
 
 أو استخدم `.env` file:
 
