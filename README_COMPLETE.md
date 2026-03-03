@@ -25,7 +25,7 @@
 1. djezzy_utils.py      (250+ سطر) ⭐ الوحدة الأساسية
    ├─ request_otp()              → طلب كود التحقق
    ├─ login_with_otp()           → تسجيل الدخول
-   ├─ send_invitation()          → إرسال الدعوات
+   ├─ send_invitation()          → التسجيل
    ├─ activate_reward()          → تفعيل المكافآت
    ├─ register_with_number()     → التسجيل الكامل
    └─ [8 دوال أخرى]

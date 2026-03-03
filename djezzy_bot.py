@@ -185,7 +185,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "1️⃣ أدخل رقم هاتفك\n"
             "2️⃣ سيتم إرسال كود التحقق\n"
             "3️⃣ أدخل الكود\n"
-            "4️⃣ سيتم البحث عن أرقام عشوائية وإرسال دعوات\n"
+            "4️⃣ سيتم تسجيل رقمك\n"
             "5️⃣ عند النجاح ستحصل على 1 جيغا\n\n"
             "⚠️ تنويه: قد تستغرق العملية عدة دقائق",
             reply_markup=InlineKeyboardMarkup(keyboard)

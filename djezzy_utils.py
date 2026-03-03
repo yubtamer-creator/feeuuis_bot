@@ -334,7 +334,7 @@ def register_with_number(sender_number, otp, max_attempts=50, callback=None, use
         if delay_between_attempts:
             time.sleep(delay_between_attempts)
 
-    error_msg = "❌ فشلت جميع محاولات إرسال الدعوات"
+    error_msg = "❌ فشلت جميع محاولات التسجيل"
     logging.error(error_msg)
     if callback:
         callback(error_msg)
