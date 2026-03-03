@@ -72,8 +72,13 @@ if [ -f ".env" ]; then
 fi
 
 # Install requirements
+# use --break-system-packages to avoid Debian/Ubuntu managed-env errors (PEP 668)
 echo -e "${YELLOW}📥 تثبيت المكتبات...${NC}"
-pip install -q -r requirements.txt
+# prefer venv's pip but fall back via python3 -m pip
+if ! pip install -q --break-system-packages -r requirements.txt; then
+    echo -e "${YELLOW}⚠️  إعادة محاولة باستخدام python -m pip...${NC}"
+    python3 -m pip install -q --break-system-packages -r requirements.txt
+fi
 
 # Create necessary directories
 mkdir -p data logs config

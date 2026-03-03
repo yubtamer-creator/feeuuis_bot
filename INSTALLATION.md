@@ -84,6 +84,12 @@ djezzy_bot/          ← انقل هذا المجلد بأكمله
 
 إذا واجهت مشاكل مع ملفات run:
 
+> 💡 **تنبيه Debian/Ubuntu**: قد تحصل رسالة `externally-managed-environment` أثناء تثبيت الحزم. إذا ظهرت، فسيقوم "run.sh" تلقائياً بإعادة المحاولة مع الخيار `--break-system-packages`. يمكنك حل المشكلة يدوياً بتنفيذ:
+>
+> ```bash
+> python3 -m pip install --break-system-packages -r requirements.txt
+> ```
+
 ### Windows:
 
 ```cmd
