@@ -49,26 +49,32 @@ if [ -f ".env" ]; then
     # shellcheck disable=SC1091
     source .env
     set +a
+fi
 
-    # simple sanity check in shell to catch default placeholder and format validity
-    if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ "$TELEGRAM_BOT_TOKEN" = "YOUR_TELEGRAM_BOT_TOKEN_HERE" ]; then
-        echo -e "${RED}❌ متغير TELEGRAM_BOT_TOKEN غير مضبوط أو يحتوي على القيمة الافتراضية!${NC}"
-        echo "تأكد من ضبطه في .env أو تصديره قبل التشغيل."
-        exit 1
-    fi
-    if ! [[ "$TELEGRAM_BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
-        echo -e "${RED}❌ يبدو أن قيمة TELEGRAM_BOT_TOKEN غير صحيحة (تنسيق غير صالح).${NC}"
-        echo "يجب أن يكون على شكل 1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh"
-        exit 1
-    fi
+# allow shorthand environment variable when invoking the script
+# BOT_TOKEN is commonly used in examples; map it to TELEGRAM_BOT_TOKEN
+if [ -n "$BOT_TOKEN" ]; then
+    TELEGRAM_BOT_TOKEN="$BOT_TOKEN"
+fi
 
-    # optional admin/chat id sanity check
-    if [ -n "$ADMIN_ID" ] && ! [[ "$ADMIN_ID" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
-        echo -e "${YELLOW}⚠️  تحذير: قيمة ADMIN_ID تبدو غير صالحة (يجب أن تكون أرقامًا مفصولة بفواصل).${NC}"
-    fi
-    if [ -n "$CHAT_ID" ] && ! [[ "$CHAT_ID" =~ ^[0-9]+$ ]]; then
-        echo -e "${YELLOW}⚠️  تحذير: قيمة CHAT_ID تبدو غير صالحة (يجب أن تكون عبارة عن رقم واحد).${NC}"
-    fi
+# simple sanity check in shell to catch default placeholder and format validity
+if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ "$TELEGRAM_BOT_TOKEN" = "YOUR_TELEGRAM_BOT_TOKEN_HERE" ]; then
+    echo -e "${RED}❌ متغير TELEGRAM_BOT_TOKEN غير مضبوط أو يحتوي على القيمة الافتراضي!${NC}"
+    echo "تأكد من ضبطه في .env أو تصديره قبل التشغيل. يمكنك أيضاً استخدام BOT_TOKEN=... عند استدعاء run.sh."
+    exit 1
+fi
+if ! [[ "$TELEGRAM_BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
+    echo -e "${RED}❌ يبدو أن قيمة TELEGRAM_BOT_TOKEN غير صحيحة (تنسيق غير صالح).${NC}"
+    echo "يجب أن يكون على شكل 1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh"
+    exit 1
+fi
+
+# optional admin/chat id sanity check
+if [ -n "$ADMIN_ID" ] && ! [[ "$ADMIN_ID" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+    echo -e "${YELLOW}⚠️  تحذير: قيمة ADMIN_ID تبدو غير صالحة (يجب أن تكون أرقامًا مفصولة بفواصل).${NC}"
+fi
+if [ -n "$CHAT_ID" ] && ! [[ "$CHAT_ID" =~ ^[0-9]+$ ]]; then
+    echo -e "${YELLOW}⚠️  تحذير: قيمة CHAT_ID تبدو غير صالحة (يجب أن تكون عبارة عن رقم واحد).${NC}"
 fi
 
 # Install requirements
