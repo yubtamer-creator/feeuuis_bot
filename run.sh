@@ -59,10 +59,13 @@ fi
 
 # normalize token: convert any common unicode dashes or spaces to ASCII hyphen
 # some copy/paste sources insert U+2011/U+2013 etc which break the regex
+# also collapse multiple hyphens (user might accidentally double-copy)
 if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
     # replace non‑breaking hyphen (U+2011), en‑dash (U+2013), em‑dash (U+2014)
     # and strip whitespace
     TELEGRAM_BOT_TOKEN=$(printf '%s' "$TELEGRAM_BOT_TOKEN" | tr '‑–—' '-' | tr -d ' \t\r\n')
+    # collapse sequences of hyphens into a single one (token should only have one separator)
+    TELEGRAM_BOT_TOKEN=$(printf '%s' "$TELEGRAM_BOT_TOKEN" | sed 's/-\+/-/g')
     export TELEGRAM_BOT_TOKEN
 fi
 
