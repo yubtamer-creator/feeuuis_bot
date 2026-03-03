@@ -57,6 +57,14 @@ if [ -n "$BOT_TOKEN" ]; then
     TELEGRAM_BOT_TOKEN="$BOT_TOKEN"
 fi
 
+# normalize token: convert any common unicode dashes or spaces to ASCII hyphen
+# some copy/paste sources insert U+2011/U+2013 etc which break the regex
+if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+    # replace non‑breaking hyphen (U+2011), en‑dash (U+2013), em‑dash (U+2014)
+    # and strip whitespace
+    TELEGRAM_BOT_TOKEN=$(printf '%s' "$TELEGRAM_BOT_TOKEN" | tr '‑–—' '-' | tr -d ' \t\r\n')
+fi
+
 # simple sanity check in shell to catch default placeholder and format validity
 if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ "$TELEGRAM_BOT_TOKEN" = "YOUR_TELEGRAM_BOT_TOKEN_HERE" ]; then
     echo -e "${RED}❌ متغير TELEGRAM_BOT_TOKEN غير مضبوط أو يحتوي على القيمة الافتراضي!${NC}"
