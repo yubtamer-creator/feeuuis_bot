@@ -1,0 +1,48 @@
+# ⚡ خطوات سريعة - إضافة Token والتشغيل على Linux
+
+## 🎯 3 خطوات فقط:
+
+### 1️⃣ الحصول على Token (من Telegram)
+```
+الهاتف/ويب:
+- ابحث عن: @BotFather
+- أرسل: /newbot
+- اتبع التعليمات
+- انسخ Token
+```
+
+### 2️⃣ إضافة Token (على جهازك)
+```bash
+# الطريقة السهلة:
+cd ~/Desktop/github_project/djezzy/djezzy_bot
+./setup_token.sh
+
+# أو يدويً:
+cp .env.example .env
+nano .env
+# ضع Token وحفظ (Ctrl+X, Y, Enter)
+```
+
+### 3️⃣ التشغيل (على Linux)
+```bash
+cd ~/Desktop/github_project/djezzy/djezzy_bot
+./run.sh
+# اختر 1 للبوت
+```
+
+✅ **جاهز!**
+
+---
+
+## 📚 المزيد من المعلومات:
+
+```bash
+# دليل تفصيلي:
+cat SETUP_TOKEN_LINUX.md
+
+# برنامج إعداد تفاعلي:
+python3 SETUP_TOKEN_LINUX.py
+
+# أو
+./setup_token.sh
+```

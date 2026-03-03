@@ -1,0 +1,43 @@
+🎯 دليل سريع - إضافة Token والتشغيل على Linux
+════════════════════════════════════════════════════════════════
+
+📋 3 خطوات فقط:
+
+1️⃣ من Telegram - احصل على Token:
+   • ابحث: @BotFather
+   • أرسل: /newbot
+   • انسخ Token
+
+2️⃣ على Linux - أضف Token:
+   $ cd ~/Desktop/github_project/djezzy/djezzy_bot
+   $ ./setup_token.sh
+   (لصق Token عند الطلب)
+
+3️⃣ شغّل البوت:
+   $ ./run.sh
+   (اختر 1)
+
+✅ جاهز!
+
+════════════════════════════════════════════════════════════════
+
+📚 أدلة إضافية:
+
+   دليل مفصل (Markdown):
+   $ cat SETUP_TOKEN_LINUX.md
+
+   برنامج تفاعلي (Python):
+   $ python3 SETUP_TOKEN_LINUX.py
+
+   برنامج الإعداد:
+   $ ./setup_token.sh
+
+   دليل شامل:
+   $ python3 COMPLETE_GUIDE_LINUX.py
+
+════════════════════════════════════════════════════════════════
+
+📍 الموقع:
+   /home/djab/Desktop/github_project/djezzy/djezzy_bot/
+
+✅ استمتع بالبوت!
