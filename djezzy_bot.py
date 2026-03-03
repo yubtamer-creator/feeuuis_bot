@@ -89,6 +89,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "مثال: 0770123456 أو 213770123456"
         )
         return PHONE_NUMBER
+    
+    if query.data == 'menu':
+        # user asked to go back to main menu
+        await show_main_menu(update, context)
+        return ConversationHandler.END
 
     # only admin may access the following commands
     if query.data in ('stats', 'recent', 'info') and not is_admin(user_id):
@@ -99,12 +104,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     if query.data == 'stats':
         count = djezzy_utils.get_registered_count()
+        keyboard = [[InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data='menu')]]
         await query.edit_message_text(
             f"📊 الإحصائيات:\n\n"
             f"✅ عدد الأرقام المسجلة: {count}\n\n"
-            f"التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        await show_main_menu(update, context)
         return ConversationHandler.END
     
     elif query.data == 'recent':
@@ -115,12 +121,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             text = "📋 آخر التسجيلات:\n\n"
             for i, reg in enumerate(recent, 1):
                 text += f"{i}. {reg['sender']} ➜ {reg['target']}\n   {reg['timestamp']}\n\n"
-        
-        await query.edit_message_text(text)
-        await show_main_menu(update, context)
+        keyboard = [[InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data='menu')]]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         return ConversationHandler.END
     
     elif query.data == 'info':
+        keyboard = [[InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data='menu')]]
         await query.edit_message_text(
             "ℹ️ معلومات البوت:\n\n"
             "هذا البوت يساعدك على تسجيل 1 جيغا مجاني من اتصالات الجزائر\n\n"
@@ -130,9 +136,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "3️⃣ أدخل الكود\n"
             "4️⃣ سيتم البحث عن أرقام عشوائية وإرسال دعوات\n"
             "5️⃣ عند النجاح ستحصل على 1 جيغا\n\n"
-            "⚠️ تنويه: قد تستغرق العملية عدة دقائق"
+            "⚠️ تنويه: قد تستغرق العملية عدة دقائق",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        await show_main_menu(update, context)
         return ConversationHandler.END
 
 
@@ -300,7 +306,8 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            CallbackQueryHandler(button_callback, pattern='^(register|stats|recent|info)$'),
+            # allow all button presses handled by button_callback
+            CallbackQueryHandler(button_callback),
         ],
         states={
             PHONE_NUMBER: [
