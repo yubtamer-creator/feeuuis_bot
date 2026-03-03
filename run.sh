@@ -63,6 +63,7 @@ if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
     # replace non‑breaking hyphen (U+2011), en‑dash (U+2013), em‑dash (U+2014)
     # and strip whitespace
     TELEGRAM_BOT_TOKEN=$(printf '%s' "$TELEGRAM_BOT_TOKEN" | tr '‑–—' '-' | tr -d ' \t\r\n')
+    export TELEGRAM_BOT_TOKEN
 fi
 
 # simple sanity check in shell to catch default placeholder and format validity
@@ -75,6 +76,11 @@ if ! [[ "$TELEGRAM_BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
     echo -e "${RED}❌ يبدو أن قيمة TELEGRAM_BOT_TOKEN غير صحيحة (تنسيق غير صالح).${NC}"
     echo "يجب أن يكون على شكل 1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh"
     exit 1
+fi
+
+# export chat id too if present
+if [ -n "$CHAT_ID" ]; then
+    export CHAT_ID
 fi
 
 # optional admin/chat id sanity check
