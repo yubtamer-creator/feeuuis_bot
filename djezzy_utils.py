@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Djezzy Registration Tool - Standalone Utility Module
-أداة تسجيل اتصالات الجزائر - وحدة مستقلة
+أداة تسجيل جيزي - وحدة مستقلة
 """
 
 import requests

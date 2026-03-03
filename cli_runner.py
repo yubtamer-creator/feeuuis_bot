@@ -23,7 +23,7 @@ except ImportError:
 def print_banner():
     """Print welcome banner"""
     print("\n" + "=" * 50)
-    print("     أداة تسجيل 1 جيغا من اتصالات الجزائر")
+    print("     أداة تسجيل 1 جيغا من جيزي")
     print("     (نسخة مستقلة - CLI)")
     print("=" * 50 + "\n")
 
@@ -49,7 +49,7 @@ def register_new_number():
     print("-" * 50)
     
     while True:
-        sender = input("\n📱 أدخل رقم اتصالات الجزائر (مثال: 0770123456): ").strip()
+        sender = input("\n📱 أدخل رقم جيزي (مثال: 0770123456): ").strip()
         if not sender:
             print("❌ الرقم مطلوب")
             continue

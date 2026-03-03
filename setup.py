@@ -275,7 +275,7 @@ def main():
 
     print("\n" + "█"*60)
     print("█" + " "*58 + "█")
-    print("█" + "  دليل الإعداد - أداة اتصالات الجزائر".center(58) + "█")
+    print("█" + "  دليل الإعداد - أداة جيزي".center(58) + "█")
     print("█" + "  Djezzy Tool - Setup Guide".center(58) + "█")
     print("█" + " "*58 + "█")
     print("█"*60)
