@@ -136,7 +136,7 @@ python3 cli_runner.py
 
 ```python
 from djezzy_utils import register_with_number
-# يمكنك تعطيل حفظ السجل بتمرير `record=False`
+# يمكنك تعطيل حفظ السجل بتمرير `record=False` (خيار مفيد عند التشغيل يدوياً من CLI)
 result = register_with_number("213770123456", "OTP", record=False)
 ```
 

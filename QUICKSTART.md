@@ -70,7 +70,7 @@ from djezzy_utils import register_with_number, request_otp
 # طلب OTP
 request_otp("213770123456")
 
-# تسجيل (بدون تخزين سجل حتى لا يتم إنشاء أي ملف بيانات)
+# تسجيل (بدون تخزين سجل حتى لا يتم إنشاء أي ملف بيانات؛ هذا الخيار خاص ببيئة CLI. بوت Telegram يسجّل تلقائياً)
 success, message, data = register_with_number(
     "213770123456", "123456", record=False
 )

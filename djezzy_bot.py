@@ -296,6 +296,7 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     def worker():
         # this runs in a thread; avoid saving log entries
+        # record=True so statistics work; CLI has its own --no-record flag
         success, msg, data = djezzy_utils.register_with_number(
             phone,
             otp,
@@ -303,7 +304,6 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             callback=progress_callback,
             user_id=user_id,
             user_name=update.effective_user.username or "",
-            record=False,
         )
         # send final result back to user
         if success:

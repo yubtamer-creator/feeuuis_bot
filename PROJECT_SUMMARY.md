@@ -25,7 +25,7 @@ request_otp(msisdn)                    # طلب كود التحقق
 login_with_otp(mobile_number, otp)    # تسجيل الدخول
 send_invitation(token, sender, receiver)  # إرسال دعوة
 activate_reward(token, sender)         # تفعيل المكافأة
-register_with_number(sender, otp, record=False)      # التسجيل الكامل (يمكن تعطيل حفظ النتائج إذا لم تكن ضرورية)
+register_with_number(sender, otp, record=False)      # التسجيل الكامل (القيم الافتراضية تخزن النتائج؛ يمكنك تعطيلها عند النداء من CLI)
 get_registered_count()                 # عدد الأرقام
 get_recent_registrations()             # آخر التسجيلات
 ```
